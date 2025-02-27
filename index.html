@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request Details</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #3498db;
+            margin-top: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .note {
+            background-color: #fff8dc;
+            padding: 10px;
+            border-left: 4px solid #ffd700;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Request Details</h1>
+
+        <div class="note">
+            <p><strong>Note:</strong> Due to browser security restrictions, client-side JavaScript can only access limited header information. For complete headers, a server-side solution would be needed.</p>
+            <p><strong>Custom Headers:</strong> Custom headers like X-Kredivo-Webview cannot be directly accessed from JavaScript. Check the "Custom Header Detection" section below for possible detection methods.</p>
+        </div>
+
+        <h2>General Information</h2>
+        <table id="general-info">
+            <tr>
+                <th>Property</th>
+                <th>Value</th>
+            </tr>
+            <!-- Will be filled by JavaScript -->
+        </table>
+
+        <h2>Request Headers (Client-Side Accessible)</h2>
+        <table id="headers">
+            <tr>
+                <th>Header</th>
+                <th>Value</th>
+            </tr>
+            <!-- Will be filled by JavaScript -->
+        </table>
+
+        <h2>Custom Header Detection</h2>
+        <div id="custom-header-section">
+            <p>Attempting to detect X-Kredivo-Webview header...</p>
+            <div id="kredivo-webview-result">Checking...</div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Display general request information
+            const generalInfoTable = document.getElementById('general-info');
+
+            const generalInfo = [
+                { property: 'URL', value: window.location.href },
+                { property: 'Path', value: window.location.pathname },
+                { property: 'Protocol', value: window.location.protocol },
+                { property: 'Host', value: window.location.host },
+                { property: 'User Agent', value: navigator.userAgent },
+                { property: 'Browser Language', value: navigator.language },
+                { property: 'Languages', value: Array.from(navigator.languages || []).join(', ') },
+                { property: 'Screen Resolution', value: `${window.screen.width}x${window.screen.height}` },
+                { property: 'Window Size', value: `${window.innerWidth}x${window.innerHeight}` },
+                { property: 'Pixel Ratio', value: window.devicePixelRatio },
+                { property: 'Referrer', value: document.referrer || 'None' },
+                { property: 'Cookies Enabled', value: navigator.cookieEnabled },
+                { property: 'Do Not Track', value: navigator.doNotTrack || 'Not specified' },
+                { property: 'Platform', value: navigator.platform },
+                { property: 'Connection Type', value: navigator.connection ?
+                    `Type: ${navigator.connection.effectiveType},
+                     Downlink: ${navigator.connection.downlink} Mbps,
+                     RTT: ${navigator.connection.rtt} ms,
+                     Save Data: ${navigator.connection.saveData}` : 'Unknown' },
+                { property: 'Online Status', value: navigator.onLine ? 'Online' : 'Offline' },
+                { property: 'Time of Request', value: new Date().toString() },
+                { property: 'Timezone', value: Intl.DateTimeFormat().resolvedOptions().timeZone },
+                { property: 'Timezone Offset', value: `${-(new Date().getTimezoneOffset() / 60)} hours from UTC` }
+            ];
+
+            generalInfo.forEach(item => {
+                const row = document.createElement('tr');
+                const propertyCell = document.createElement('td');
+                const valueCell = document.createElement('td');
+
+                propertyCell.textContent = item.property;
+                valueCell.textContent = item.value;
+
+                row.appendChild(propertyCell);
+                row.appendChild(valueCell);
+                generalInfoTable.appendChild(row);
+            });
+
+            // Display client-side accessible headers
+            const headersTable = document.getElementById('headers');
+
+            // Add User-Agent header
+            addHeaderRow('User-Agent', navigator.userAgent);
+
+            // Add Accept-Language header
+            addHeaderRow('Accept-Language', navigator.languages ? navigator.languages.join(', ') : navigator.language);
+
+            // Add Content-Language if available
+            if (document.contentType) {
+                addHeaderRow('Content-Type', document.contentType);
+            }
+
+            // Add Cookie info (we can't see actual cookies for security reasons)
+            addHeaderRow('Cookies', navigator.cookieEnabled ? 'Enabled (specific cookies not accessible via JavaScript)' : 'Disabled');
+
+            // Add DNT (Do Not Track) header
+            addHeaderRow('DNT (Do Not Track)', navigator.doNotTrack || 'Not specified');
+
+            // Add Referer header
+            addHeaderRow('Referer', document.referrer || 'None');
+
+            // Add Sec-CH-UA headers if available (Client Hints)
+            if (navigator.userAgentData) {
+                addHeaderRow('Sec-CH-UA-Platform', navigator.userAgentData.platform);
+                addHeaderRow('Sec-CH-UA-Mobile', navigator.userAgentData.mobile ? '?1' : '?0');
+
+                // Get high-entropy values if available
+                navigator.userAgentData.getHighEntropyValues([
+                    "architecture",
+                    "bitness",
+                    "brands",
+                    "mobile",
+                    "model",
+                    "platform",
+                    "platformVersion",
+                    "uaFullVersion"
+                ]).then(ua => {
+                    if (ua.brands) {
+                        const brandsStr = ua.brands.map(b => `"${b.brand}";v="${b.version}"`).join(', ');
+                        addHeaderRow('Sec-CH-UA', brandsStr);
+                    }
+                    if (ua.architecture) addHeaderRow('Sec-CH-UA-Arch', ua.architecture);
+                    if (ua.bitness) addHeaderRow('Sec-CH-UA-Bitness', ua.bitness);
+                    if (ua.model) addHeaderRow('Sec-CH-UA-Model', ua.model);
+                    if (ua.platformVersion) addHeaderRow('Sec-CH-UA-Platform-Version', ua.platformVersion);
+                    if (ua.uaFullVersion) addHeaderRow('Sec-CH-UA-Full-Version', ua.uaFullVersion);
+                }).catch(e => {
+                    console.log('High entropy values not available:', e);
+                });
+            }
+
+            // Add Save-Data header if available
+            if (navigator.connection && navigator.connection.saveData !== undefined) {
+                addHeaderRow('Save-Data', navigator.connection.saveData ? 'on' : 'off');
+            }
+
+            // Add Viewport dimensions (not a header but useful)
+            addHeaderRow('Viewport-Width', window.innerWidth);
+
+            // Add DPR (Device Pixel Ratio) (not a header but useful)
+            addHeaderRow('DPR', window.devicePixelRatio);
+
+            // Custom header detection attempt
+            const resultElement = document.getElementById('kredivo-webview-result');
+
+            // Method 1: Check if we're in a WebView environment
+            // This is an indirect way to guess if the header might be present
+            const isWebView = (function() {
+                // Check for common WebView indicators
+                const userAgent = navigator.userAgent.toLowerCase();
+                const isAndroidWebView = userAgent.includes('wv');
+                const isIOSWebView =
+                    /(iPhone|iPod|iPad).*AppleWebKit(?!.*Safari)/i.test(navigator.userAgent) ||
+                    /(iPhone|iPod|iPad).*AppleWebKit.*Mobile/i.test(navigator.userAgent) && !window.safari;
+
+                // Check for Kredivo specific indicators in the user agent
+                const isKredivoApp = userAgent.includes('kredivo');
+
+                return isAndroidWebView || isIOSWebView || isKredivoApp;
+            })();
+
+            if (isWebView) {
+                resultElement.innerHTML =
+                    'Detected a WebView environment, which might include the X-Kredivo-Webview header.<br>' +
+                    'However, JavaScript cannot directly access this header due to browser security restrictions.<br>' +
+                    'User Agent suggests this might be a WebView: ' + navigator.userAgent;
+            } else {
+                resultElement.innerHTML =
+                    'Not detected as a WebView environment. The X-Kredivo-Webview header might not be present,<br>' +
+                    'or cannot be detected from client-side JavaScript.';
+            }
+
+            // Method 2: Add a section for manual verification
+            const manualSection = document.createElement('div');
+            manualSection.innerHTML = `
+                <h3>Manual Verification</h3>
+                <p>To verify if the X-Kredivo-Webview header is being sent:</p>
+                <ol>
+                    <li>Use a server-side script that logs all headers and returns them to the client</li>
+                    <li>Use browser developer tools (Network tab) to inspect request headers</li>
+                    <li>Use an external service like <a href="https://httpbin.org/headers" target="_blank">httpbin.org/headers</a> which will echo back all headers it receives</li>
+                </ol>
+                <p>For testing, you can visit: <a href="https://httpbin.org/headers" target="_blank">https://httpbin.org/headers</a></p>
+            `;
+            document.getElementById('custom-header-section').appendChild(manualSection);
+
+            // Add this header to our display table with a note
+            addHeaderRow('X-Kredivo-Webview', 'Cannot be directly accessed via JavaScript (browser security restriction)');
+
+            function addHeaderRow(header, value) {
+                const row = document.createElement('tr');
+                const headerCell = document.createElement('td');
+                const valueCell = document.createElement('td');
+
+                headerCell.textContent = header;
+                valueCell.textContent = value;
+
+                row.appendChild(headerCell);
+                row.appendChild(valueCell);
+                headersTable.appendChild(row);
+            }
+        });
+    </script>
+</body>
+</html>
